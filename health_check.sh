@@ -63,7 +63,7 @@ if [[
     {
         "attachments": [
             {
-                "color": "primary",
+                "color": "good",
                 "title": "✅ Site Up",
                 "text": "The application is up and running.",
                 "fields": [
@@ -133,7 +133,7 @@ if [[
     {
         "attachments": [
             {
-                "color": "primary",
+                "color": "good",
                 "title": "✅ Server disk usage < 95%",
                 "text": "The server disk space is OK.",
                 "fields": [
