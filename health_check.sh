@@ -17,10 +17,16 @@ if [[ ! -f $DIR/.metadata.txt ]]; then
     echo -e "SITE_STATUS=UP\nSTORAGE_STATUS=OK" > $DIR/.metadata.txt
 fi
 
+# Get site status
+CURL_RES=$(curl -s -L -o /dev/null -w "%{http_code}" -m 5 "$SITE_URL")
+
+# Get current metadata SITE_STATUS
+SITE_STATUS=$(cat $DIR/.metadata.txt | grep SITE_STATUS= | sed s/SITE_STATUS=//)
+
 # Check if site is down
 if [[ 
-        $(curl -I -m 5 $SITE_URL | grep HTTP/ | awk '{print $2}') != 200 && 
-        $(cat $DIR/.metadata.txt | grep SITE_STATUS= | sed s/SITE_STATUS=//) == 'UP' 
+        $CURL_RES -ne 200 && 
+        "$SITE_STATUS" == "UP" 
     ]]; then
     curl -X POST $SLACK_WEBHOOK_URL \
     -H 'Content-type: application/json' \
@@ -50,12 +56,11 @@ if [[
     }'
 
     sed -i.bak 's/SITE_STATUS=UP/SITE_STATUS=DOWN/' $DIR/.metadata.txt
-fi
 
 # Check if site is up
-if [[   
-        $(curl -I -m 5 $SITE_URL | grep HTTP/ | awk '{print $2}') == 200 && 
-        $(cat $DIR/.metadata.txt | grep SITE_STATUS= | sed s/SITE_STATUS=//) == 'DOWN' 
+elif [[   
+        $CURL_RES -eq 200 && 
+        "$SITE_STATUS" == "DOWN"
     ]]; then
     curl -X POST $SLACK_WEBHOOK_URL \
     -H 'Content-type: application/json' \
@@ -87,10 +92,16 @@ if [[
     sed -i.bak 's/SITE_STATUS=DOWN/SITE_STATUS=UP/' $DIR/.metadata.txt
 fi
 
+# Get storage usage
+DISK_USAGE=$(df -h | grep /$ | awk '{print $5}' | sed s/%//)
+
+# Get current metadata STORAGE_STATUS
+STORAGE_STATUS=$(cat $DIR/.metadata.txt | grep STORAGE_STATUS= | sed s/STORAGE_STATUS=//)
+
 # Check if disk is full (95% disk usage alert)
 if [[ 
-        $(df -h | grep /$ | awk '{print $5}' | sed s/%//) -ge 95 &&
-        $(cat $DIR/.metadata.txt | grep STORAGE_STATUS= | sed s/STORAGE_STATUS=//) == 'OK'
+        $DISK_USAGE -ge 95 &&
+        $STORAGE_STATUS == "OK"
     ]]; then 
     curl -X POST $SLACK_WEBHOOK_URL \
     -H 'Content-type: application/json' \
@@ -120,12 +131,11 @@ if [[
     }'
 
     sed -i.bak 's/STORAGE_STATUS=OK/STORAGE_STATUS=WARN/' $DIR/.metadata.txt
-fi
 
 # Check if disk issue was resolved (95% disk usage alert)
-if [[ 
-        $(df -h | grep /$ | awk '{print $5}' | sed s/%//) -lt 95 &&
-        $(cat $DIR/.metadata.txt | grep STORAGE_STATUS= | sed s/STORAGE_STATUS=//) == 'WARN'
+elif [[ 
+        $DISK_USAGE -lt 95 &&
+        $STORAGE_STATUS == "WARN"
     ]]; then 
     curl -X POST $SLACK_WEBHOOK_URL \
     -H 'Content-type: application/json' \
